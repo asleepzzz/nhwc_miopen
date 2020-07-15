@@ -467,7 +467,7 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
                        Merge<Sequence<N, HTildaSlice, WTildaSlice>>{}),
             make_tuple(Sequence<0>{}, Sequence<2, 3, 5>{}, Sequence<1, 4, 6>{}),
             make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}));
-
+/*
         constexpr auto gridwise_gemm =
             GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1<
                 GridSize,
@@ -505,6 +505,49 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
                 MBlock1NBlock0>{};
 
         gridwise_gemm.Run(p_wei_global, p_out_global, p_in_global);
+*/
+
+        constexpr auto gridwise_gemm = GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v2<
+            GridSize,
+            BlockSize,
+            Float,
+            AccFloat,
+            Float,
+            decltype(wei_gemmg_gemmk_gemmm_gemmkpack_global_desc),
+            decltype(out_gemmg_gemmk_gemmn_gemmkpack_global_desc),
+            decltype(in_gemmg_gemmm_gemmn_global_desc),
+            GemmMPerBlock,
+            GemmNPerBlock,
+            GemmKPerBlock,
+            GemmMPerWave,
+            GemmNPerWave,
+            GemmABlockCopyThreadSliceLengths_GemmG_GemmK_GemmM_GemmKPACK,
+            GemmABlockCopyThreadClusterLengths_GemmG_GemmK_GemmM_GemmKPACK,
+            Sequence<0, 2, 1, 3>,
+            Sequence<0, 2, 1, 3>,
+            Sequence<0, 1, 2, 3>,
+            2, // src vector read dimension of A matrix is GemmKPack
+            GemmABlockCopySrcDataPerRead_GemmM,
+            GemmABlockCopyDstDataPerWrite_GemmKPACK,
+            GemmBBlockCopyThreadSliceLengths_GemmG_GemmK_GemmN_GemmKPACK,
+             GemmBBlockCopyThreadClusterLengths_GemmG_GemmK_GemmN_GemmKPACK,
+            Sequence<0, 1, 2, 3>,
+            Sequence<0, 1, 2, 3>,
+            Sequence<0, 1, 2, 3>,
+            2, // Src vetor read diemsnion of B matrix is GemmN
+            GemmBBlockCopySrcDataPerRead_GemmN,
+            GemmBBlockCopyDstDataPerWrite_GemmKPACK,
+            InMemoryDataOperation::Set,
+#if MIOPEN_USE_FP16 || MIOPEN_USE_BFP16	    
+	    NBlock1MBlock0
+#else
+            MBlock1NBlock0
+#endif
+	    >{};
+//NBlock1MBlock0
+        gridwise_gemm.Run(p_wei_global, p_out_global, p_in_global);
+
+
     }
 
     template <index_t GemmId>
