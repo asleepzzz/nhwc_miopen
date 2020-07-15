@@ -473,9 +473,15 @@ bool PerformanceImplicitGemmBwdDataV4R1Xdlops::IsValid(const ConvolutionContext&
             return false;
     }
 
+    if(!((GemmK/GemmKPACKSize) % GemmKPerBlock == 0))
+         return false;
+
     if(!(GemmM % GemmMPerBlock == 0 && GemmN % GemmNPerBlock == 0 && GemmK % GemmKPerBlock == 0))
         return false; // wrong! cannot divice N evenly among thread
 
+    if(!IsValidBlockwiseGemmXdlops(
+           ctx, GemmMPerBlock, GemmNPerBlock, GemmKPerBlock, GemmMPerWave, GemmNPerWave, GemmKPACKSize))
+        return false;
 //    if(!IsValidXdlopsGemm(GemmMPerBlock, GemmNPerBlock, GemmKPerBlock, GemmMPerWave, GemmNPerWave))
 //        return false;
 
