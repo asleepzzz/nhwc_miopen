@@ -420,8 +420,8 @@ bool PerformanceImplicitGemmBwdDataV4R1Xdlops::IsValid(const ConvolutionContext&
         return false;
 
     // GemmKPACKSize = 4 for fp16
-    if(ctx.IsFp16() && GemmKPACKSize %4 != 0)
-        return false;
+    //if(ctx.IsFp16() && GemmKPACKSize %4 != 0)
+    //    return false;
 
     // GemmKPACKSize = 2, 4 for bfp16 bwd non-group
     if(ctx.IsBfp16() && ctx.group_counts == 1 && GemmKPACKSize != 2 && GemmKPACKSize != 4)
@@ -472,9 +472,6 @@ bool PerformanceImplicitGemmBwdDataV4R1Xdlops::IsValid(const ConvolutionContext&
         if((GemmNPerBlock == 32 || GemmNPerBlock == 16) && GemmNPerWave != GemmNPerBlock)
             return false;
     }
-
-    if(!((GemmK/GemmKPACKSize) % GemmKPerBlock == 0))
-         return false;
 
     if(!(GemmM % GemmMPerBlock == 0 && GemmN % GemmNPerBlock == 0 && GemmK % GemmKPerBlock == 0))
         return false; // wrong! cannot divice N evenly among thread
