@@ -283,8 +283,10 @@ class ConvDriver : public Driver
 
     tensor<Tgpu> in;
     tensor<Tgpu> wei;
+    tensor<Tgpu> wei2;
     tensor<Tgpu> out;
     tensor<Tgpu> dout;
+    tensor<Tgpu> dout2;
     tensor<Tgpu> b;
     tensor<Tref> outhost;
     tensor<Tref> dwei_host;
@@ -1064,12 +1066,16 @@ int ConvDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
 
     if(is_fwd || is_wrw)
         in = tensor<Tgpu>(miopen::deref(inputTensor).GetLengths());
-    if(is_fwd || is_bwd)
+    if(is_fwd || is_bwd) {
         wei = tensor<Tgpu>(miopen::deref(weightTensor).GetLengths());
+	wei2 = tensor<Tgpu>(miopen::deref(weightTensor).GetLengths());
+    }
     if(is_fwd)
         out = tensor<Tgpu>(miopen::deref(outputTensor).GetLengths());
-    if(is_bwd || is_wrw)
+    if(is_bwd || is_wrw) {
         dout = tensor<Tgpu>(miopen::deref(outputTensor).GetLengths());
+	dout2 = tensor<Tgpu>(miopen::deref(outputTensor).GetLengths());
+    }
 
     if(is_bwd)
         din = std::vector<Tgpu>(in_sz, static_cast<Tgpu>(0));
@@ -1214,14 +1220,54 @@ int ConvDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
             db_dev->ToGPU(q, db.data());
         }
 
-        if(!weiRead)
-        {
+        //if(!weiRead)
+        //{
             for(int i = 0; i < wei_sz; i++)
                 if(is_fwd || is_bwd)
                     wei.data[i] = Data_scale * detail::RanGenWeights<Tgpu>();
                 else /// \ref move_rand
                     rand();
-        }
+        //}
+
+	int out_c       = inflags.GetValueInt("out_channels");
+        int in_c        = inflags.GetValueInt("in_channels");
+	int fil_h  = inflags.GetValueInt("fil_h");
+	int fil_w  = inflags.GetValueInt("fil_w");
+
+	for(int i = 0; i < wei_sz; i++)
+       {
+               int index_c = i%in_c;
+               int tmp_kyx = i/in_c;
+               int index_x = tmp_kyx % fil_w;
+               int tmp_ky = tmp_kyx/fil_w;
+               int index_y = tmp_ky%fil_h;
+               int index_k =tmp_ky/fil_h;
+               int kcrs_index = index_k*(in_c*fil_w*fil_h)+index_c*(fil_w*fil_h)+index_y*fil_w+index_x;
+               wei2.data[i]=wei.data[kcrs_index];//kcrs to krsc
+               if (i<10)
+		       printf("=========krsc %d kcrs %d============\n",i,kcrs_index);
+       }
+
+
+	        int out_n, out_k, out_h, out_w;
+        std::tie(out_n, out_k, out_h, out_w) =
+            miopen::tien<4>(miopen::deref(outputTensor).GetLengths());
+
+       printf("=====mkoo %d %d %d %d======================\n",out_n, out_k, out_h, out_w);
+       for(int i = 0; i < out_sz; i++)
+       {
+           int index_k = i%out_k;
+	   int tmp_nOhOw = i/out_k;
+	   int index_Ow = tmp_nOhOw % out_w;
+           int tmp_nOh = tmp_nOhOw/out_w;
+	   int index_Oh = tmp_nOh % out_h;
+	   int index_n = tmp_nOh /out_h;
+	   int nkoo_index = index_n*(out_k*out_h*out_w)+index_k*(out_h*out_w)+index_Oh*out_w+index_Ow;
+           dout2.data[i]=dout.data[nkoo_index];
+           if (i<10)
+		   printf("=========nook %d nkoo %d============\n",i,nkoo_index);
+       }
+
     }
 
     if(inflags.GetValueInt("dump_output"))
@@ -1252,7 +1298,8 @@ int ConvDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
     if(is_fwd || is_bwd)
     {
         wei_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, wei_sz, sizeof(Tgpu)));
-        status |= wei_dev->ToGPU(q, wei.data.data());
+        //statusass Co|= wei_dev->ToGPU(q, wei.data.data());
+	status |= wei_dev->ToGPU(q, wei2.data.data());
     }
     if(is_wrw)
     {
@@ -1262,7 +1309,8 @@ int ConvDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
     if(is_bwd || is_wrw)
     {
         dout_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, out_sz, sizeof(Tgpu)));
-        status |= dout_dev->ToGPU(q, dout.data.data());
+        //status |= dout_dev->ToGPU(q, dout.data.data());
+	status |= dout_dev->ToGPU(q, dout2.data.data());
     }
     if(is_fwd)
     {

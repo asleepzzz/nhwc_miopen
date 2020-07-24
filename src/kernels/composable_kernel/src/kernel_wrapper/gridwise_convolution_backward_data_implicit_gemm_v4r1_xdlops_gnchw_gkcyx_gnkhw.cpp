@@ -49,11 +49,11 @@ extern "C" __global__
     constexpr auto in_gnchw_desc =
         make_native_tensor_descriptor(Sequence<GroupCounts, N, CPerGroup, Hi, Wi>{},
                                       Sequence<CPerGroup * Hi * Wi, C * Hi * Wi, Hi * Wi, Wi, 1>{});
-    constexpr auto wei_gkcyx_desc =
-        make_native_tensor_descriptor_packed(Sequence<GroupCounts, KPerGroup, CPerGroup, Y, X>{});
-    constexpr auto out_gnkhw_desc =
-        make_native_tensor_descriptor(Sequence<GroupCounts, N, KPerGroup, Ho, Wo>{},
-                                      Sequence<KPerGroup * Ho * Wo, K * Ho * Wo, Ho * Wo, Wo, 1>{});
+    constexpr auto wei_gkyxc_desc =
+        make_native_tensor_descriptor_packed(Sequence<GroupCounts, KPerGroup,  Y, X,CPerGroup>{});
+    constexpr auto out_gnhwk_desc =
+        make_native_tensor_descriptor(Sequence<GroupCounts, N,  Ho, Wo,KPerGroup>{},
+			Sequence<KPerGroup * Ho * Wo, K * Ho * Wo, KPerGroup * Wo, KPerGroup, 1>{});
 
     using ConvStrides   = Sequence<ConvStrideH, ConvStrideW>;
     using ConvDilations = Sequence<ConvDilationH, ConvDilationW>;
@@ -90,36 +90,14 @@ extern "C" __global__
     constexpr index_t GemmBBlockCopyThreadSliceLengths_GemmN =
         GemmNPerBlock / GemmBBlockCopyClusterLengths_GemmN;
 
-    constexpr index_t GemmBBlockCopySrcDataPerRead_GemmN =
-        CK_PARAM_TUNABLE_GEMM_B_BLOCK_COPY_SRC_DATA_PER_READ_GEMM_N;
+    constexpr index_t GemmBBlockCopySrcDataPerRead_GemmKPACK =
+        CK_PARAM_TUNABLE_GEMM_B_BLOCK_COPY_SRC_DATA_PER_READ_GEMM_KPACK;
 
         constexpr index_t GemmABlockCopyClusterLengths_GemmKPACK =
         CK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_CLUSTER_LENGTHS_GEMM_KPACK;
 
     constexpr index_t GemmBBlockCopyClusterLengths_GemmKPACK =
         CK_PARAM_DEPENDENT_GEMM_B_BLOCK_COPY_CLUSTER_LENGTHS_GEMM_KPACK;
-#if MIOPEN_USE_FP32
-    // A matrix
-    using GemmABlockCopyThreadSliceLengths_GemmG_GemmK_GemmM =
-        Sequence<1, GemmABlockCopyThreadSliceLengths_GemmK, GemmABlockCopyThreadSliceLengths_GemmM>;
-
-    using GemmABlockCopyThreadClusterLengths_GemmG_GemmK_GemmM =
-        Sequence<1, GemmABlockCopyClusterLengths_GemmK, GemmABlockCopyClusterLengths_GemmM>;
-
-    constexpr index_t GemmABlockCopyDstDataPerWrite_GemmM =
-        CK_PARAM_TUNABLE_GEMM_A_BLOCK_COPY_DST_DATA_PER_WRITE_GEMM_M;
-
-    // B matrix
-    using GemmBBlockCopyThreadSliceLengths_GemmG_GemmK_GemmN =
-        Sequence<1, GemmBBlockCopyThreadSliceLengths_GemmK, GemmBBlockCopyThreadSliceLengths_GemmN>;
-
-    using GemmBBlockCopyThreadClusterLengths_GemmG_GemmK_GemmN =
-        Sequence<1, GemmBBlockCopyClusterLengths_GemmK, GemmBBlockCopyClusterLengths_GemmN>;
-
-    constexpr index_t GemmBBlockCopyDstDataPerWrite_GemmN =
-        CK_PARAM_TUNABLE_GEMM_B_BLOCK_COPY_DST_DATA_PER_WRITE_GEMM_N;
-
-#elif MIOPEN_USE_FP16 || MIOPEN_USE_BFP16
     constexpr index_t GemmKPACK = CK_PARAM_KPACK_LENGTH;
 
     constexpr index_t GemmABlockCopyThreadSliceLengths_GemmKPACK =
@@ -155,10 +133,6 @@ extern "C" __global__
     constexpr index_t GemmBBlockCopyDstDataPerWrite_GemmKPACK =
         CK_PARAM_TUNABLE_GEMM_B_BLOCK_COPY_DST_DATA_PER_WRITE_GEMM_KPACK;
 
-#else
-    static_assert(false, "wrong! Only fp32, fp16 and bfp16 are supported.");
-#endif
-
     // C matrix
     constexpr auto GemmMPerWave = CK_PARAM_GEMM_M_PER_WAVE;
     constexpr auto GemmNPerWave = CK_PARAM_GEMM_N_PER_WAVE;
@@ -174,7 +148,7 @@ extern "C" __global__
             FLOAT,
             FLOAT_ACCUM,
             decltype(in_gnchw_desc),
-            decltype(wei_gkcyx_desc),
+            decltype(wei_gkyxc_desc),
             decltype(out_gnkhw_desc),
             ConvStrides,
             ConvDilations,
@@ -208,8 +182,8 @@ extern "C" __global__
             FLOAT,
             FLOAT_ACCUM,
             decltype(in_gnchw_desc),
-            decltype(wei_gkcyx_desc),
-            decltype(out_gnkhw_desc),
+            decltype(wei_gkyxc_desc),
+            decltype(out_gnhwk_desc),
             ConvStrides,
             ConvDilations,
             InLeftPads,
@@ -228,7 +202,7 @@ extern "C" __global__
             GemmABlockCopyDstDataPerWrite_GemmKPACK,
             GemmBBlockCopyThreadSliceLengths_GemmG_GemmK_GemmN_GemmKPACK,
             GemmBBlockCopyThreadClusterLengths_GemmG_GemmK_GemmN_GemmKPACK,
-            GemmBBlockCopySrcDataPerRead_GemmN,
+            GemmBBlockCopySrcDataPerRead_GemmKPACK,
             GemmBBlockCopyDstDataPerWrite_GemmKPACK>{};
 
     // this decides which GEMM will be called
