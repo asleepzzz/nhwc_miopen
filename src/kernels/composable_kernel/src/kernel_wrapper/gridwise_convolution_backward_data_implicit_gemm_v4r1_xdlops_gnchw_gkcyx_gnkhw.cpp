@@ -46,9 +46,9 @@ extern "C" __global__
     constexpr auto CPerGroup = C / GroupCounts;
     constexpr auto KPerGroup = K / GroupCounts;
 
-    constexpr auto in_gnchw_desc =
-        make_native_tensor_descriptor(Sequence<GroupCounts, N, CPerGroup, Hi, Wi>{},
-                                      Sequence<CPerGroup * Hi * Wi, C * Hi * Wi, Hi * Wi, Wi, 1>{});
+    constexpr auto in_gnhwc_desc =
+        make_native_tensor_descriptor(Sequence<GroupCounts, N,  Hi, Wi,CPerGroup>{},
+                                      Sequence<CPerGroup * Hi * Wi, C * Hi * Wi, CPerGroup * Wi, CPerGroup, 1>{});
     constexpr auto wei_gkyxc_desc =
         make_native_tensor_descriptor_packed(Sequence<GroupCounts, KPerGroup,  Y, X,CPerGroup>{});
     constexpr auto out_gnhwk_desc =
@@ -147,7 +147,7 @@ extern "C" __global__
             BlockSize,
             FLOAT,
             FLOAT_ACCUM,
-            decltype(in_gnchw_desc),
+            decltype(in_gnhwc_desc),
             decltype(wei_gkyxc_desc),
             decltype(out_gnkhw_desc),
             ConvStrides,
@@ -181,7 +181,7 @@ extern "C" __global__
             BlockSize,
             FLOAT,
             FLOAT_ACCUM,
-            decltype(in_gnchw_desc),
+            decltype(in_gnhwc_desc),
             decltype(wei_gkyxc_desc),
             decltype(out_gnhwk_desc),
             ConvStrides,

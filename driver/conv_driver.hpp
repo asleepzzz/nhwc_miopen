@@ -291,6 +291,7 @@ class ConvDriver : public Driver
     tensor<Tref> outhost;
     tensor<Tref> dwei_host;
     tensor<Tref> din_host;
+    tensor<Tref> din_host2;
     tensor<Tref> db_host;
     tensor<warmup_Tgpu> warmup_in;
     tensor<warmup_Tgpu> warmup_wei;
@@ -1093,6 +1094,7 @@ int ConvDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
 
     outhost   = tensor<Tref>(miopen::deref(outputTensor).GetLengths());
     din_host  = tensor<Tref>(miopen::deref(inputTensor).GetLengths());
+    din_host2  = tensor<Tref>(miopen::deref(inputTensor).GetLengths());
     dwei_host = tensor<Tref>(miopen::deref(weightTensor).GetLengths());
 
     std::string inFileName   = inflags.GetValueStr("in_data");
@@ -3023,8 +3025,28 @@ int ConvDriver<Tgpu, Tref>::VerifyBackward()
             if(!TryReadVerificationCache(Direction::Bwd, inputTensor, din_host.data.data()))
                 RunBackwardDataCPU();
 
+	int in_n =inflags.GetValueInt("batchsize");
+        int in_c        = inflags.GetValueInt("in_channels");
+	int in_h =inflags.GetValueInt("in_h");
+        int in_w        = inflags.GetValueInt("in_w");
+
+
+
+	for (int i =0;i<in_n*in_c*in_h*in_w;i++)
+	{
+                int index_w = i%in_w;
+		int tmp_nch = i/in_w;
+		int index_h = tmp_nch % in_h;
+		int tmp_nc = tmp_nch/in_h;
+		int index_c = tmp_nc%in_c;
+		int index_n = tmp_nc/in_c;
+		int nhwc_index = index_n*(in_h*in_w*in_c)+index_h*(in_w*in_c)+index_w*in_c+index_c;
+		//printf("=============nchw %d nhwc %d=================\n",i,nhwc_index);
+		din_host2.data[nhwc_index]=din_host.data[i];
+	}	
         auto error_data = is_bwd_run_failed ? std::numeric_limits<double>::max()
-                                            : miopen::rms_range(din_host.data, din);
+                                            //: miopen::rms_range(din_host.data, din);
+					    : miopen::rms_range(din_host2.data, din);
 
         auto tolerance = GetDefaultTolerance();
         // iGemm's deviation is higher than other algorithms.

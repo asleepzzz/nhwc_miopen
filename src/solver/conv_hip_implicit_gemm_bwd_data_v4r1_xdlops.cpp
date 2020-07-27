@@ -174,16 +174,16 @@ PerformanceImplicitGemmBwdDataV4R1Xdlops::CalculateGemmABlockCopyPerformancePara
         int data_per_thread_copy_gemmk     = -1;
         int data_per_thread_copy_gemmkpack = -1;
 
-        if(GemmAThreadCopyMoreGemmK)
-        {
-            data_per_thread_copy_gemmk     = gcd(GemmKPerBlock, tmp);
-            data_per_thread_copy_gemmkpack = tmp / data_per_thread_copy_gemmk;
-        }
-        else
-        {
+        //if(GemmAThreadCopyMoreGemmK)
+        //{
+        //    data_per_thread_copy_gemmk     = gcd(GemmKPerBlock, tmp);
+        //    data_per_thread_copy_gemmkpack = tmp / data_per_thread_copy_gemmk;
+        //}
+        //else
+        //{
             data_per_thread_copy_gemmkpack = gcd(GemmKPACKSize, tmp);
             data_per_thread_copy_gemmk     = tmp / data_per_thread_copy_gemmkpack;
-        }
+        //}
 
 
 	DstDataPerWrite_GemmKPack = gcd(DstDataPerWrite_GemmKPack, data_per_thread_copy_gemmkpack);
@@ -570,10 +570,10 @@ bool PerformanceImplicitGemmBwdDataV4R1Xdlops::SetNextValue()
     {
         if(!use_spare_set)
         {
-            if(!NextFlag<false, true>(GemmBThreadCopyMoreGemmKPack))
-                break;
-            if(!NextFlag<false, true>(GemmAThreadCopyMoreGemmK))
-                break;
+            //if(!NextFlag<false, true>(GemmBThreadCopyMoreGemmKPack))
+            //    break;
+            //if(!NextFlag<false, true>(GemmAThreadCopyMoreGemmK))
+            //    break;
             if(!NextTwoPower<64, 256>(GemmNPerBlock))
                 break;
             if(!NextTwoPower<64, 256>(GemmMPerBlock))
@@ -582,10 +582,10 @@ bool PerformanceImplicitGemmBwdDataV4R1Xdlops::SetNextValue()
                 break;
             if(!NextTwoPower<4, 8>(GemmKPACKSize))
                 break;
-	    if(!NextTwoPower<4, 128>(GemmMPerWave))
-                break;
-            if(!NextTwoPower<16, 128>(GemmNPerWave))
-                break;
+	    //if(!NextTwoPower<16, 128>(GemmMPerWave))
+            //    break;
+            //if(!NextTwoPower<16, 128>(GemmNPerWave))
+            //    break;
 
         }
         else
