@@ -538,9 +538,9 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
             GemmNPerWave,
             GemmABlockCopyThreadSliceLengths_GemmG_GemmK_GemmM_GemmKPACK,
             GemmABlockCopyThreadClusterLengths_GemmG_GemmK_GemmM_GemmKPACK,
-            Sequence<0, 1, 3, 2>,
-            Sequence<0, 1, 3, 2>,
-            Sequence<0, 1, 3, 2>,
+            Sequence<0, 1, 2, 3>,
+            Sequence<0, 1, 2, 3>,
+            Sequence<0, 1, 2, 3>,
             2, // src vector read dimension of A matrix is GemmKPack
             GemmABlockCopySrcDataPerRead_GemmM,
             GemmABlockCopyDstDataPerWrite_GemmKPACK,
