@@ -1312,9 +1312,9 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v3
                                                       decltype(c_g_m0_m1_m2_n_global_desc),
                                                       CThreadCopySliceLengths,
                                                       arithmetic_sequence_gen<0, 5, 1>::type,
-                                                      3,
-                                                      math::gcd(M2,8),
-                                                      math::gcd(M2,8),
+                                                      4,
+                                                      1,
+                                                      1,
                                                       AddressSpace::Vgpr,
                                                       AddressSpace::Global,
                                                       CGlobalMemoryOp>(

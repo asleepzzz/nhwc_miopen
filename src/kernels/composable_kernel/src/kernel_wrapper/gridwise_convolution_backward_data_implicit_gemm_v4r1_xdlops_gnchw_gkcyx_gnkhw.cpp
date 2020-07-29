@@ -74,8 +74,8 @@ extern "C" __global__
     constexpr index_t GemmABlockCopyThreadSliceLengths_GemmM =
         GemmMPerBlock / GemmABlockCopyClusterLengths_GemmM;
 
-    constexpr index_t GemmABlockCopySrcDataPerRead_GemmM =
-        CK_PARAM_TUNABLE_GEMM_A_BLOCK_COPY_SRC_DATA_PER_READ_GEMM_M;
+    constexpr index_t GemmABlockCopySrcDataPerRead_GemmKPACK =
+        CK_PARAM_TUNABLE_GEMM_A_BLOCK_COPY_SRC_DATA_PER_READ_GEMM_KPACK;
 
     // B matrix
     constexpr index_t GemmBBlockCopyClusterLengths_GemmK =
@@ -90,8 +90,8 @@ extern "C" __global__
     constexpr index_t GemmBBlockCopyThreadSliceLengths_GemmN =
         GemmNPerBlock / GemmBBlockCopyClusterLengths_GemmN;
 
-    constexpr index_t GemmBBlockCopySrcDataPerRead_GemmKPACK =
-        CK_PARAM_TUNABLE_GEMM_B_BLOCK_COPY_SRC_DATA_PER_READ_GEMM_KPACK;
+    constexpr index_t GemmBBlockCopySrcDataPerRead_GemmN =
+        CK_PARAM_TUNABLE_GEMM_B_BLOCK_COPY_SRC_DATA_PER_READ_GEMM_N;
 
         constexpr index_t GemmABlockCopyClusterLengths_GemmKPACK =
         CK_PARAM_DEPENDENT_GEMM_A_BLOCK_COPY_CLUSTER_LENGTHS_GEMM_KPACK;
@@ -163,7 +163,7 @@ extern "C" __global__
             GemmThreadGemmDataPerReadN,
             GemmABlockCopyThreadSliceLengths_GemmG_GemmK_GemmM,
             GemmABlockCopyThreadClusterLengths_GemmG_GemmK_GemmM,
-            GemmABlockCopySrcDataPerRead_GemmM,
+            GemmABlockCopySrcDataPerRead_GemmKPACK,
             GemmABlockCopyDstDataPerWrite_GemmM,
             GemmBBlockCopyThreadSliceLengths_GemmG_GemmK_GemmN,
             GemmBBlockCopyThreadClusterLengths_GemmG_GemmK_GemmN,
@@ -198,11 +198,11 @@ extern "C" __global__
             GemmThreadGemmDataPerReadN,
             GemmABlockCopyThreadSliceLengths_GemmG_GemmK_GemmM_GemmKPACK,
             GemmABlockCopyThreadClusterLengths_GemmG_GemmK_GemmM_GemmKPACK,
-            GemmABlockCopySrcDataPerRead_GemmM,
+            GemmABlockCopySrcDataPerRead_GemmKPACK,
             GemmABlockCopyDstDataPerWrite_GemmKPACK,
             GemmBBlockCopyThreadSliceLengths_GemmG_GemmK_GemmN_GemmKPACK,
             GemmBBlockCopyThreadClusterLengths_GemmG_GemmK_GemmN_GemmKPACK,
-            GemmBBlockCopySrcDataPerRead_GemmKPACK,
+          GemmBBlockCopySrcDataPerRead_GemmN,
             GemmBBlockCopyDstDataPerWrite_GemmKPACK>{};
 
     // this decides which GEMM will be called
