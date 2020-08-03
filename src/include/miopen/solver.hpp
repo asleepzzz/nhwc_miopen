@@ -742,7 +742,7 @@ struct PerformanceImplicitGemmBwdDataV4R1Xdlops
     PerformanceImplicitGemmBwdDataV4R1Xdlops(int, int, int, int, int, int,bool, bool, bool);
 
     PerformanceImplicitGemmBwdDataV4R1Xdlops()
-        : PerformanceImplicitGemmBwdDataV4R1Xdlops(-1, -1, -1, -1, -1, -1, false,true,false)
+        : PerformanceImplicitGemmBwdDataV4R1Xdlops(-1, -1, -1, -1, -1, -1, false,false,false)
     {
     }
 

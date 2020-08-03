@@ -548,7 +548,7 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
             GemmBBlockCopyThreadClusterLengths_GemmG_GemmK_GemmN_GemmKPACK,
             Sequence<0, 2, 1, 3>,
             Sequence<0, 2, 1, 3>,
-            Sequence<0, 1, 2, 3>,
+            Sequence<0, 2, 1, 3>,
             3, // Src vetor read diemsnion of B matrix is GemmN
             GemmBBlockCopySrcDataPerRead_GemmKPACK,
             GemmBBlockCopyDstDataPerWrite_GemmKPACK,
