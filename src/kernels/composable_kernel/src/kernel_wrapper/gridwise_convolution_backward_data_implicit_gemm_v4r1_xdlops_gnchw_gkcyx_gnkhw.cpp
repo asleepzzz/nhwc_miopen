@@ -104,14 +104,16 @@ extern "C" __global__
         GemmKPACK / GemmABlockCopyClusterLengths_GemmKPACK;
 
     // A matrix
-    using GemmABlockCopyThreadSliceLengths_GemmG_GemmK_GemmM_GemmKPACK =
+    using GemmABlockCopyThreadSliceLengths_GemmG_GemmK0_GemmK1_GemmK2_GemmM_GemmKPACK =
         Sequence<1,
+	         1,
+		 1,
                  GemmABlockCopyThreadSliceLengths_GemmK,
                  GemmABlockCopyThreadSliceLengths_GemmM,
                  GemmABlockCopyThreadSliceLengths_GemmKPACK>;
 
-    using GemmABlockCopyThreadClusterLengths_GemmG_GemmK_GemmM_GemmKPACK =
-        Sequence<1, GemmABlockCopyClusterLengths_GemmK, GemmABlockCopyClusterLengths_GemmM, GemmABlockCopyClusterLengths_GemmKPACK>;
+    using GemmABlockCopyThreadClusterLengths_GemmG_GemmK0_GemmK1_GemmK2_GemmM_GemmKPACK =
+        Sequence<1, 1,1,GemmABlockCopyClusterLengths_GemmK, GemmABlockCopyClusterLengths_GemmM, GemmABlockCopyClusterLengths_GemmKPACK>;
 
     constexpr index_t GemmABlockCopyDstDataPerWrite_GemmKPACK =
         CK_PARAM_TUNABLE_GEMM_A_BLOCK_COPY_DST_DATA_PER_WRITE_GEMM_KPACK;
@@ -121,14 +123,16 @@ extern "C" __global__
     constexpr index_t GemmBBlockCopyThreadSliceLengths_GemmKPACK =
         GemmKPACK / GemmBBlockCopyClusterLengths_GemmKPACK;
 
-    using GemmBBlockCopyThreadSliceLengths_GemmG_GemmK_GemmN_GemmKPACK =
+    using GemmBBlockCopyThreadSliceLengths_GemmG_GemmK0_GemmK1_GemmK2_GemmN_GemmKPACK =
         Sequence<1,
+	         1,
+		 1,
                  GemmBBlockCopyThreadSliceLengths_GemmK,
                  GemmBBlockCopyThreadSliceLengths_GemmN,
 		 GemmBBlockCopyThreadSliceLengths_GemmKPACK>;
 
-    using GemmBBlockCopyThreadClusterLengths_GemmG_GemmK_GemmN_GemmKPACK =
-        Sequence<1, GemmBBlockCopyClusterLengths_GemmK, GemmBBlockCopyClusterLengths_GemmN, GemmBBlockCopyClusterLengths_GemmKPACK>;
+    using GemmBBlockCopyThreadClusterLengths_GemmG_GemmK0_GemmK1_GemmK2_GemmN_GemmKPACK =
+        Sequence<1, 1,1,GemmBBlockCopyClusterLengths_GemmK, GemmBBlockCopyClusterLengths_GemmN, GemmBBlockCopyClusterLengths_GemmKPACK>;
 
     constexpr index_t GemmBBlockCopyDstDataPerWrite_GemmKPACK =
         CK_PARAM_TUNABLE_GEMM_B_BLOCK_COPY_DST_DATA_PER_WRITE_GEMM_KPACK;
@@ -139,7 +143,7 @@ extern "C" __global__
 
     constexpr index_t GemmThreadGemmDataPerReadM = 1;
     constexpr index_t GemmThreadGemmDataPerReadN = 1;
-
+/*
 #if MIOPEN_USE_FP32
     constexpr auto gridwise_conv_bwd_data =
         GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_gnchw_gkcyx_gnkhw<
@@ -174,7 +178,8 @@ extern "C" __global__
     constexpr index_t GemmId = CK_PARAM_GEMM_ID;
 
     gridwise_conv_bwd_data.template Run<GemmId>(p_in_global, p_wei_global, p_out_global);
-#elif MIOPEN_USE_FP16 || MIOPEN_USE_BFP16
+*/
+    //#elif MIOPEN_USE_FP16 || MIOPEN_USE_BFP16
     constexpr auto gridwise_conv_bwd_data =
         GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_gkcyx_gnkhw<
             GridSize,
@@ -196,12 +201,12 @@ extern "C" __global__
             GemmNPerWave,
             GemmThreadGemmDataPerReadM,
             GemmThreadGemmDataPerReadN,
-            GemmABlockCopyThreadSliceLengths_GemmG_GemmK_GemmM_GemmKPACK,
-            GemmABlockCopyThreadClusterLengths_GemmG_GemmK_GemmM_GemmKPACK,
+            GemmABlockCopyThreadSliceLengths_GemmG_GemmK0_GemmK1_GemmK2_GemmM_GemmKPACK,
+            GemmABlockCopyThreadClusterLengths_GemmG_GemmK0_GemmK1_GemmK2_GemmM_GemmKPACK,
             GemmABlockCopySrcDataPerRead_GemmM,
             GemmABlockCopyDstDataPerWrite_GemmKPACK,
-            GemmBBlockCopyThreadSliceLengths_GemmG_GemmK_GemmN_GemmKPACK,
-            GemmBBlockCopyThreadClusterLengths_GemmG_GemmK_GemmN_GemmKPACK,
+            GemmBBlockCopyThreadSliceLengths_GemmG_GemmK0_GemmK1_GemmK2_GemmN_GemmKPACK,
+            GemmBBlockCopyThreadClusterLengths_GemmG_GemmK0_GemmK1_GemmK2_GemmN_GemmKPACK,
             GemmBBlockCopySrcDataPerRead_GemmKPACK,
             GemmBBlockCopyDstDataPerWrite_GemmKPACK>{};
 
@@ -210,7 +215,7 @@ extern "C" __global__
 
     gridwise_conv_bwd_data.template Run<GemmId>(p_in_global, p_wei_global, p_out_global);
 
-#else
-    static_assert(false, "wrong! Only fp32, fp16 and bfp16 are supported.");
-#endif
+//#else
+//    static_assert(false, "wrong! Only fp32, fp16 and bfp16 are supported.");
+//#endif
 }
