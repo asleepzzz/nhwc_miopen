@@ -1368,6 +1368,8 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v4
                         const ABFloat* const __restrict__ p_b_global,
                         CFloat* const __restrict__ p_c_global) const
     {
+	constexpr auto I0 = Number<0>{};
+        constexpr auto I3 = Number<3>{};
         constexpr auto True = integral_constant<bool, true>{};
 
         constexpr auto a_g_k0_k1_k2_m_kpack_global_desc = AGlobalDesc{};
@@ -1377,13 +1379,13 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v4
         constexpr auto G     = c_g_m_n_global_desc.GetLengths()[0];
         constexpr auto M     = c_g_m_n_global_desc.GetLengths()[1];
         constexpr auto N     = c_g_m_n_global_desc.GetLengths()[2];
-        constexpr auto K0     = b_g_k0_k1_k2_n_kpack_global_desc.GetLengths()[1];
-	constexpr auto K1     = b_g_k0_k1_k2_n_kpack_global_desc.GetLengths()[2];
-	constexpr auto K2     = b_g_k0_k1_k2_n_kpack_global_desc.GetLengths()[3];
+        constexpr auto K0     = b_g_k0_k1_k2_n_kpack_global_desc.GetLengths()[1];//y
+	constexpr auto K1     = b_g_k0_k1_k2_n_kpack_global_desc.GetLengths()[2];//x
+	constexpr auto K2     = b_g_k0_k1_k2_n_kpack_global_desc.GetLengths()[3];//k/kpack
         constexpr auto KPack = b_g_k0_k1_k2_n_kpack_global_desc.GetLengths()[4];
 
         // divide block work by [M, N]
-        static_assert(M % MPerBlock == 0 && N % NPerBlock == 0 && K % KPerBlock == 0,
+        static_assert(M % MPerBlock == 0 && N % NPerBlock == 0 && K2 % KPerBlock == 0,
                       "wrong! cannot divide work evenly among block");
 
         constexpr index_t MBlockWork = M / MPerBlock;
@@ -1513,7 +1515,7 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v4
         constexpr auto blockwise_b_copy_src_step = Sequence<0,0,0, KPerBlock, 0, 0>{};
 
         // main body
-        for(index_t k_block_data_begin = 0; k_block_data_begin < K - KPerBlock;
+        for(index_t k_block_data_begin = 0; k_block_data_begin < K2 - KPerBlock;
             k_block_data_begin += KPerBlock)
         {
             ABFloat p_a_thread_buffer[a_blockwise_copy.GetThreadBufferSize()];
