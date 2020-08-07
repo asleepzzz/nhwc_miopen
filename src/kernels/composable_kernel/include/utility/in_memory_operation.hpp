@@ -147,7 +147,7 @@ struct AtomicAddData
     __device__ void Run<AddressSpace::Vgpr, AddressSpace::Global>(const T* p_src,
                                                                   index_t src_offset,
                                                                   index_t /* src_range */,
-                                                                  bool src_valid T* p_dst,
+                                                                  src_valid T* p_dst,
                                                                   index_t dst_offset,
                                                                   bool dst_valid,
                                                                   index_t dst_range) const
@@ -158,7 +158,7 @@ struct AtomicAddData
                                                 p_dst,
                                                 dst_offset,
                                                 dst_valid,
-                                                index_t dst_range);
+                                                dst_range);
     }
 #endif
 };
