@@ -304,8 +304,8 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
                           Sequence<iHTildaLeft, iWTildaLeft>,
                           Sequence<iHTildaRight, iWTildaRight>>{},
                     PassThrough<K>{}),
-                make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2, 4>{}, Sequence<3, 7>{}, Sequence<6>{}),
-                make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2, 4>{}, Sequence<3, 7>{}, Sequence<6>{}));
+                make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2, 4>{}, Sequence<3, 5>{}, Sequence<6>{}),
+                make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2, 4>{}, Sequence<3, 5>{}, Sequence<6>{}));
 
 
 
@@ -412,7 +412,7 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
 
 
 
-        constexpr auto gridwise_gemm = GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v3<
+        constexpr auto gridwise_gemm = GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v4<
             GridSize,
             BlockSize,
             Float,
