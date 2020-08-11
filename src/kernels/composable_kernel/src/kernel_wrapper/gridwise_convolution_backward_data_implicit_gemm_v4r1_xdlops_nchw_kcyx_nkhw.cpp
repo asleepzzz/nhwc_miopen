@@ -142,7 +142,6 @@ extern "C" __global__
     constexpr index_t GemmThreadGemmDataPerReadM = 1;
     constexpr index_t GemmThreadGemmDataPerReadN = 1;
 
-/*
 #if MIOPEN_USE_FP32
     constexpr auto gridwise_conv_bwd_data =
         GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_nchw_kcyx_nkhw<
@@ -178,7 +177,6 @@ extern "C" __global__
 
     gridwise_conv_bwd_data.template Run<GemmId>(p_in_global, p_wei_global, p_out_global);
 #elif MIOPEN_USE_FP16 || MIOPEN_USE_BFP16
-*/
     constexpr auto gridwise_conv_bwd_data =
         GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_nchw_kcyx_nkhw<
             GridSize,
@@ -214,7 +212,7 @@ extern "C" __global__
 
     gridwise_conv_bwd_data.template Run<GemmId>(p_in_global, p_wei_global, p_out_global);
 
-//#else
-//    static_assert(false, "wrong! Only fp32, fp16 and bfp16 are supported.");
-//#endif
+#else
+    static_assert(false, "wrong! Only fp32, fp16 and bfp16 are supported.");
+#endif
 }

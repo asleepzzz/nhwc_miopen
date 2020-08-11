@@ -1413,7 +1413,6 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v4
 
         //   LDS
         //     be careful of LDS alignment
-
         constexpr auto a_g_k0_k1_k2_m_kpack_block_desc = make_native_tensor_descriptor_aligned(
             Sequence<1,1,1, KPerBlock, MPerBlock, KPack>{}, Number<max_align>{});
 
@@ -1437,7 +1436,6 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v4
             InMemoryDataOperation::Set>({g_block_data_on_global, 0,0,0, m_block_data_on_global, 0},
                                         {0, 0, 0, 0,0,0});
 
-	
         constexpr auto b_g_k0_k1_k2_n_kpack_block_desc = make_native_tensor_descriptor_aligned(
             Sequence<1,1,1, KPerBlock, NPerBlock, KPack>{}, Number<max_align>{});
 
@@ -1507,11 +1505,6 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v4
         threadwise_matrix_set_zero(c_k_thread_mtx_desc, p_c_thread);
         blockwise_gemm.XdlopsMatrixCSetZero();
 
-for(index_t k0 = 0; k0 < K0; ++k0)
-{
-    for(index_t k1 = 0; k1 < K1; ++k1)
-    {	    
-
         // preload data into LDS
         {
             a_blockwise_copy.Run(p_a_global, p_a_block);
@@ -1567,21 +1560,6 @@ for(index_t k0 = 0; k0 < K0; ++k0)
             blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, p_c_thread);
         }
 
-
-                // reset slice windoww on K2 dimension, then move forward on K1 dimension
-                a_blockwise_copy.MoveSrcSliceWindow(Sequence<0,0, 0, K2 - KPerBlock, 0,0>{}, false);
-                b_blockwise_copy.MoveSrcSliceWindow(Sequence<0,0, 0, K2 - KPerBlock, 0,0>{}, false);
-
-                a_blockwise_copy.MoveSrcSliceWindow(Sequence<0, 0, 1, 0,0,0>{}, true);
-                b_blockwise_copy.MoveSrcSliceWindow(Sequence<0, 0, 1, 0,0,0>{}, true);
-    }
-                // reset slice windoww on K1 dimension, then move forward on K0 dimension
-            a_blockwise_copy.MoveSrcSliceWindow(Sequence<0, 0,K1, 0, 0,0>{}, false);
-            b_blockwise_copy.MoveSrcSliceWindow(Sequence<0, 0,K1, 0, 0,0>{}, false);
-
-            a_blockwise_copy.MoveSrcSliceWindow(Sequence<0,1, 0, 0, 0,0>{}, true);
-            b_blockwise_copy.MoveSrcSliceWindow(Sequence<0,1, 0, 0, 0,0>{}, true);
-}
         // load data from xldop_acc_regs
         blockwise_gemm.XdlopsMatrixCRead(p_c_thread);
 
@@ -1644,7 +1622,6 @@ for(index_t k0 = 0; k0 < K0; ++k0)
                     .Run(p_c_thread + i * BlkSize, p_c_global);
             }
         }
-
     }
 };
 
