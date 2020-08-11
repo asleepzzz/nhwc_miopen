@@ -408,6 +408,28 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
                            Sequence<4, 5>{},
 			   Sequence<6>{}));
 
+
+        constexpr auto in_g_n_htildaslice_wtildaslice_c_global_desc = transform_tensor_descriptor(
+            in_g_n_ytilda_htilda_xtilda_wtilda_c_global_desc,
+            make_tuple(PassThrough<G>{},
+		       PassThrough<N>{},
+                       Freeze<Sequence<YTilda, XTilda>, Sequence<iYTilda, iXTilda>>{},
+                       Slice<Sequence<HTilda, WTilda>,
+                             Sequence<iHTildaLeft, iWTildaLeft>,
+                             Sequence<iHTildaRight, iWTildaRight>>{},
+                       PassThrough<C>{}),
+            make_tuple(Sequence<0>{},Sequence<1>{}, Sequence<2, 4>{}, Sequence<3, 5>{}, Sequence<6>{}),
+            make_tuple(Sequence<0>{},Sequence<1>{}, Sequence<>{}, Sequence<2, 3>{}, Sequence<4>{}));
+
+
+        constexpr auto in_gemmg_gemmm_gemmn_global_desc = transform_tensor_descriptor(
+            in_g_n_htildaslice_wtildaslice_c_global_desc,
+            make_tuple(
+		    PassThrough<G>{},PassThrough<C>{}, Merge<Sequence<N, HTildaSlice, WTildaSlice>>{}),
+            make_tuple(Sequence<0>{}, Sequence<4>{}, Sequence<1, 2, 3>{}),
+            make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}));
+
+/*
         constexpr auto in_g_n_ytilda_htildaslice_xtilda_wtildaslice_c_global_desc =
             transform_tensor_descriptor(in_g_n_ytilda_htilda_xtilda_wtilda_c_global_desc,
                                         make_tuple(PassThrough<G>{},
@@ -434,7 +456,7 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
                                                    Sequence<6>{}));
 
                // A matrix
-	/*
+	
         constexpr auto wei_g_k_ydotslice_ytidaslice_xdotslice_xtildaslice_c_global_desc =
             transform_tensor_descriptor(
                 wei_g_k_ydot_ytilda_xdot_xtilda_c_global_desc,
@@ -538,7 +560,7 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
                        PassThrough<GemmKPACK>{}),
             make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{},Sequence<3>{}, Sequence<5>{}, Sequence<4>{}),
             make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{},Sequence<3>{}, Sequence<4>{}, Sequence<5>{}));
-*/
+
         // C matrix
         constexpr auto in_g_n_ytildaslice_htildaslice_xtildaslice_wtildaslice_c_global_desc =
             transform_tensor_descriptor(in_g_n_ytilda_htildaslice_xtilda_wtildaslice_c_global_desc,
@@ -573,7 +595,9 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
 		       ),
             make_tuple(Sequence<0>{}, Sequence<6, 2, 4>{},Sequence<1, 3, 5>{}),
             make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}));
-/*
+*/
+	
+	/*
         constexpr auto gridwise_gemm =
             GridwiseBatchedGemmTransposedANormalBNormalCXdlopsFp16Bfp16_v1<
                 GridSize,
