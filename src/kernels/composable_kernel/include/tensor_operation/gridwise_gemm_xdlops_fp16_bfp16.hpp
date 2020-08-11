@@ -1330,7 +1330,6 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v3
     }
 };
 
-
 template <index_t GridSize,
           index_t BlockSize,
           class ABFloat,
@@ -1344,16 +1343,17 @@ template <index_t GridSize,
           index_t KPerBlock,
           index_t MPerWave,
           index_t NPerWave,
-          class ABlockCopyThreadSliceLengths_G_K0_K1_K2_M_KPACK,
-          class ABlockCopyThreadClusterLengths_G_K0_K1_K2_M_KPACK,
+	  
+          class ABlockCopyThreadSliceLengths_G_K0_K1_K_M_KPACK,
+          class ABlockCopyThreadClusterLengths_G_K0_K1_K_M_KPACK,
           class ABlockCopyThreadClusterArrangeOrder,
           class ABlockCopySrcAccessOrder,
           class ABlockCopyDstAccessOrder,
           index_t ABlockCopySrcVectorReadDim,
           index_t ABlockCopySrcDataPerRead,
           index_t ABlockCopyDstDataPerWrite_KPACK,
-          class BBlockCopyThreadSliceLengths_G_K0_K1_K2_N_KPACK,
-          class BBlockCopyThreadClusterLengths_G_K0_K1_K2_N_KPACK,
+          class BBlockCopyThreadSliceLengths_G_K0_K1_K_N_KPACK,
+          class BBlockCopyThreadClusterLengths_G_K0_K1_K_N_KPACK,
           class BBlockCopyThreadClusterArrangeOrder,
           class BBlockCopySrcAccessOrder,
           class BBlockCopyDstAccessOrder,
@@ -1368,24 +1368,23 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v4
                         const ABFloat* const __restrict__ p_b_global,
                         CFloat* const __restrict__ p_c_global) const
     {
-	constexpr auto I0 = Number<0>{};
-        constexpr auto I3 = Number<3>{};
         constexpr auto True = integral_constant<bool, true>{};
+	constexpr auto False = integral_constant<bool, false>{};
 
-        constexpr auto a_g_k0_k1_k2_m_kpack_global_desc = AGlobalDesc{};
-        constexpr auto b_g_k0_k1_k2_n_kpack_global_desc = BGlobalDesc{};
+        constexpr auto a_g_k0_k1_k_m_kpack_global_desc = AGlobalDesc{};
+        constexpr auto b_g_k0_k1_k_n_kpack_global_desc = BGlobalDesc{};
         constexpr auto c_g_m_n_global_desc       = CGlobalDesc{};
 
         constexpr auto G     = c_g_m_n_global_desc.GetLengths()[0];
         constexpr auto M     = c_g_m_n_global_desc.GetLengths()[1];
         constexpr auto N     = c_g_m_n_global_desc.GetLengths()[2];
-        constexpr auto K0     = b_g_k0_k1_k2_n_kpack_global_desc.GetLengths()[1];//y
-	constexpr auto K1     = b_g_k0_k1_k2_n_kpack_global_desc.GetLengths()[2];//x
-	constexpr auto K2     = b_g_k0_k1_k2_n_kpack_global_desc.GetLengths()[3];//k/kpack
-        constexpr auto KPack = b_g_k0_k1_k2_n_kpack_global_desc.GetLengths()[4];
+	constexpr auto K0     = b_g_k0_k1_k_n_kpack_global_desc.GetLengths()[1];
+	constexpr auto K1     = b_g_k0_k1_k_n_kpack_global_desc.GetLengths()[2];
+        constexpr auto K     = b_g_k0_k1_k_n_kpack_global_desc.GetLengths()[3];
+        constexpr auto KPack = b_g_k0_k1_k_n_kpack_global_desc.GetLengths()[5];
 
         // divide block work by [M, N]
-        static_assert(M % MPerBlock == 0 && N % NPerBlock == 0 && K2 % KPerBlock == 0,
+        static_assert(M % MPerBlock == 0 && N % NPerBlock == 0 && K % KPerBlock == 0,
                       "wrong! cannot divide work evenly among block");
 
         constexpr index_t MBlockWork = M / MPerBlock;
@@ -1413,16 +1412,16 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v4
 
         //   LDS
         //     be careful of LDS alignment
-        constexpr auto a_g_k0_k1_k2_m_kpack_block_desc = make_native_tensor_descriptor_aligned(
-            Sequence<1,1,1, KPerBlock, MPerBlock, KPack>{}, Number<max_align>{});
+        constexpr auto a_g_k0_k1_k_m_kpack_block_desc = make_native_tensor_descriptor_aligned(
+            Sequence<1, K0,K1,KPerBlock, MPerBlock, KPack>{}, Number<max_align>{});
 
         auto a_blockwise_copy = BlockwiseGenericTensorSliceCopy_v4<
             BlockSize,
-            decltype(a_g_k0_k1_k2_m_kpack_global_desc),
-            decltype(a_g_k0_k1_k2_m_kpack_block_desc),
-            decltype(a_g_k0_k1_k2_m_kpack_block_desc.GetLengths()),
-            ABlockCopyThreadSliceLengths_G_K0_K1_K2_M_KPACK,
-            ABlockCopyThreadClusterLengths_G_K0_K1_K2_M_KPACK,
+            decltype(a_g_k0_k1_k_m_kpack_global_desc),
+            decltype(a_g_k0_k1_k_m_kpack_block_desc),
+            decltype(a_g_k0_k1_k_m_kpack_block_desc.GetLengths()),
+            ABlockCopyThreadSliceLengths_G_K0_K1_K_M_KPACK,
+            ABlockCopyThreadClusterLengths_G_K0_K1_K_M_KPACK,
             ABlockCopyThreadClusterArrangeOrder,
             ABlockCopySrcAccessOrder,
             ABlockCopyDstAccessOrder,
@@ -1436,17 +1435,17 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v4
             InMemoryDataOperation::Set>({g_block_data_on_global, 0,0,0, m_block_data_on_global, 0},
                                         {0, 0, 0, 0,0,0});
 
-        constexpr auto b_g_k0_k1_k2_n_kpack_block_desc = make_native_tensor_descriptor_aligned(
-            Sequence<1,1,1, KPerBlock, NPerBlock, KPack>{}, Number<max_align>{});
+        constexpr auto b_g_k0_k1_k_n_kpack_block_desc = make_native_tensor_descriptor_aligned(
+            Sequence<1, K0,K1,KPerBlock, NPerBlock, KPack>{}, Number<max_align>{});
 
         // input blockwise copy
         auto b_blockwise_copy = BlockwiseGenericTensorSliceCopy_v4<
             BlockSize,
-            decltype(b_g_k0_k1_k2_n_kpack_global_desc),
-            decltype(b_g_k0_k1_k2_n_kpack_block_desc),
-            decltype(b_g_k0_k1_k2_n_kpack_block_desc.GetLengths()),
-            BBlockCopyThreadSliceLengths_G_K0_K1_K2_N_KPACK,
-            BBlockCopyThreadClusterLengths_G_K0_K1_K2_N_KPACK,
+            decltype(b_g_k0_k1_k_n_kpack_global_desc),
+            decltype(b_g_k0_k1_k_n_kpack_block_desc),
+            decltype(b_g_k0_k1_k_n_kpack_block_desc.GetLengths()),
+            BBlockCopyThreadSliceLengths_G_K0_K1_K_N_KPACK,
+            BBlockCopyThreadClusterLengths_G_K0_K1_K_N_KPACK,
             BBlockCopyThreadClusterArrangeOrder,
             BBlockCopySrcAccessOrder,
             BBlockCopyDstAccessOrder,
@@ -1466,19 +1465,15 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v4
         //     b_mtx[KPerBlocl, NPerBlock] is in LDS
         //     c_mtx[MPerBlock, NPerBlock] is distributed among threads, and saved in
         //     register
-        constexpr auto a_g_k_m_block_mtx_desc =
-            make_ConstantMatrixDescriptor(
-            unfold_tensor_descriptor(a_g_k0_k1_k2_m_kpack_block_desc, I0, I3));
-            //make_ConstantMatrixDescriptor_packed(Number<KPerBlock>{}, Number<MPerBlock>{});
-        constexpr auto b_g_k_n_block_mtx_desc = make_ConstantMatrixDescriptor(
-            unfold_tensor_descriptor(b_g_k0_k1_k2_n_kpack_block_desc, I0, I3));
-        //constexpr auto b_k_n_block_mtx_desc =
-        //    make_ConstantMatrixDescriptor_packed(Number<KPerBlock>{}, Number<NPerBlock>{});
+        constexpr auto a_k_m_block_mtx_desc =
+            make_ConstantMatrixDescriptor_packed(Number<KPerBlock>{}, Number<MPerBlock>{});
+        constexpr auto b_k_n_block_mtx_desc =
+            make_ConstantMatrixDescriptor_packed(Number<KPerBlock>{}, Number<NPerBlock>{});
 
         const auto blockwise_gemm = BlockwiseGemmBlockABlockBThreadCTransANormalBNormalC_xdlops<
             BlockSize,
-            decltype(a_g_k_m_block_mtx_desc),
-            decltype(b_g_k_n_block_mtx_desc),
+            decltype(a_k_m_block_mtx_desc),
+            decltype(b_k_n_block_mtx_desc),
             ABFloat,
             MPerWave,
             NPerWave,
@@ -1490,10 +1485,10 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v4
         constexpr auto c_k_thread_mtx_desc = blockwise_gemm.GetThreadMatrixCDescriptor();
 
         constexpr index_t a_block_space =
-            math::integer_least_multiple(a_g_k0_k1_k2_m_kpack_block_desc.GetElementSpace(), max_align);
+            math::integer_least_multiple(a_g_k0_k1_k_m_kpack_block_desc.GetElementSpace(), max_align);
 
         constexpr index_t b_block_space =
-            math::integer_least_multiple(b_g_k0_k1_k2_n_kpack_block_desc.GetElementSpace(), max_align);
+            math::integer_least_multiple(b_g_k0_k1_k_n_kpack_block_desc.GetElementSpace(), max_align);
 
         __shared__ ABFloat p_a_block[a_block_space];
         __shared__ ABFloat p_b_block[b_block_space];
@@ -1505,17 +1500,21 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v4
         threadwise_matrix_set_zero(c_k_thread_mtx_desc, p_c_thread);
         blockwise_gemm.XdlopsMatrixCSetZero();
 
+for(index_t k0 = 0; k0 < K0; ++k0)
+{
+    for(index_t k1 = 0; k1 < K1; ++k1)
+    {	    
         // preload data into LDS
         {
             a_blockwise_copy.Run(p_a_global, p_a_block);
             b_blockwise_copy.Run(p_b_global, p_b_block);
         }
 
-        constexpr auto blockwise_a_copy_src_step = Sequence<0,0,0, KPerBlock, 0, 0>{};
-        constexpr auto blockwise_b_copy_src_step = Sequence<0,0,0, KPerBlock, 0, 0>{};
+        constexpr auto blockwise_a_copy_src_step = Sequence<0, 0,0,KPerBlock, 0, 0>{};
+        constexpr auto blockwise_b_copy_src_step = Sequence<0, 0,0,KPerBlock, 0, 0>{};
 
         // main body
-        for(index_t k_block_data_begin = 0; k_block_data_begin < K2 - KPerBlock;
+        for(index_t k_block_data_begin = 0; k_block_data_begin < K - KPerBlock;
             k_block_data_begin += KPerBlock)
         {
             ABFloat p_a_thread_buffer[a_blockwise_copy.GetThreadBufferSize()];
@@ -1559,6 +1558,21 @@ struct GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v4
                     p_b_block);
             blockwise_gemm.Run(p_a_block_vec, p_b_block_vec, p_c_thread);
         }
+
+                // reset slice windoww on K2 dimension, then move forward on K1 dimension
+                a_blockwise_copy.MoveSrcSliceWindow(Sequence<0,0, 0, K - KPerBlock, 0,0>{}, False);
+                b_blockwise_copy.MoveSrcSliceWindow(Sequence<0,0, 0, K - KPerBlock, 0,0>{}, False);
+
+                a_blockwise_copy.MoveSrcSliceWindow(Sequence<0, 0, 1, 0,0,0>{}, True);
+                b_blockwise_copy.MoveSrcSliceWindow(Sequence<0, 0, 1, 0,0,0>{}, True);
+    }
+                // reset slice windoww on K1 dimension, then move forward on K0 dimension
+            a_blockwise_copy.MoveSrcSliceWindow(Sequence<0, 0,K1, 0, 0,0>{}, False);
+            b_blockwise_copy.MoveSrcSliceWindow(Sequence<0, 0,K1, 0, 0,0>{}, False);
+
+            a_blockwise_copy.MoveSrcSliceWindow(Sequence<0,1, 0, 0, 0,0>{}, True);
+            b_blockwise_copy.MoveSrcSliceWindow(Sequence<0,1, 0, 0, 0,0>{}, True);
+}
 
         // load data from xldop_acc_regs
         blockwise_gemm.XdlopsMatrixCRead(p_c_thread);

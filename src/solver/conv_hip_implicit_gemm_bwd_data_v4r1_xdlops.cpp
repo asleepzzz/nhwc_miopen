@@ -570,10 +570,12 @@ bool PerformanceImplicitGemmBwdDataV4R1Xdlops::IsValidValue() const
 
 bool PerformanceImplicitGemmBwdDataV4R1Xdlops::SetNextValue()
 {
+
     do
     {
         if(!use_spare_set)
         {
+
             if(!NextTwoPower<64, 256>(GemmNPerBlock))
                 break;
             if(!NextTwoPower<64, 256>(GemmMPerBlock))
@@ -584,12 +586,23 @@ bool PerformanceImplicitGemmBwdDataV4R1Xdlops::SetNextValue()
                 break;
 	    if(!NextTwoPower<64, 128>(GemmMPerWave))
                 break;
+
             if(!NextTwoPower<64, 128>(GemmNPerWave))
                 break;
             if(!NextFlag<false, true>(GemmBThreadCopyMoreGemmKPack))
                 break;
-            if(!NextFlag<false, true>(GemmAThreadCopyMoreGemmK))
-                break;
+ 
+           //if(!NextFlag<false, true>(GemmAThreadCopyMoreGemmK))
+            //    break;
+	   //GemmAThreadCopyMoreGemmK=false;
+
+           //if(!NextFlag<false, true>(GemmAThreadCopyMoreGemmK))
+           //     break;
+	   //if(!NextFlag<false, true>(GemmAThreadCopyMoreGemmK))
+//		   break;
+	   if(!NextFlag<false, true>(GemmAThreadCopyMoreGemmK))
+                   break;
+
 
         }
         else
@@ -614,6 +627,11 @@ bool PerformanceImplicitGemmBwdDataV4R1Xdlops::SetNextValue()
         }
         return false;
     } while(false);
+
+
+
+
+
 
     return true;
 }

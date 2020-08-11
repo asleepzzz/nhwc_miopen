@@ -32,12 +32,12 @@ template <index_t GridSize,
           index_t GemmNPerWave,
           index_t GemmThreadGemmDataPerReadM,
           index_t GemmThreadGemmDataPerReadN,
-          typename GemmABlockCopyThreadSliceLengths_GemmG_GemmK_GemmM_GemmKPACK,
-          typename GemmABlockCopyThreadClusterLengths_GemmG_GemmK_GemmM_GemmKPACK,
+          typename GemmABlockCopyThreadSliceLengths_GemmG_GemmK0_GemmK1_GemmK_GemmM_GemmKPACK,
+          typename GemmABlockCopyThreadClusterLengths_GemmG_GemmK0_GemmK1_GemmK_GemmM_GemmKPACK,
           index_t GemmABlockCopySrcDataPerRead_GemmM,
           index_t GemmABlockCopyDstDataPerWrite_GemmKPACK,
-          typename GemmBBlockCopyThreadSliceLengths_GemmG_GemmK_GemmN_GemmKPACK,
-          typename GemmBBlockCopyThreadClusterLengths_GemmG_GemmK_GemmN_GemmKPACK,
+          typename GemmBBlockCopyThreadSliceLengths_GemmG_GemmK0_GemmK1_GemmK_GemmN_GemmKPACK,
+          typename GemmBBlockCopyThreadClusterLengths_GemmG_GemmK0_GemmK1_GemmK_GemmN_GemmKPACK,
           index_t GemmBBlockCopySrcDataPerRead_GemmKPACK,
           index_t GemmBBlockCopyDstDataPerWrite_GemmKPACK>
 struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_gkcyx_gnkhw
@@ -196,6 +196,22 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
 
         // weight out-of-bound check can be skipped
         constexpr bool wei_skip_out_of_bound_check = true;
+ // GEMM
+        constexpr index_t YDotSlice = (iYTilda + 1) * YDot <= Y ? YDot : Y % YDot;
+        constexpr index_t XDotSlice = (iXTilda + 1) * XDot <= X ? XDot : X % XDot;
+
+//you need to recover it after test 
+//constexpr index_t K0=YDotSlice;
+//constexpr index_t K1=XDotSlice;
+
+
+        // GemmM and GemmN
+        //constexpr index_t GemmM = C;
+        constexpr index_t GemmN = N * HTildaSlice * WTildaSlice;
+
+        // GemmK is different for each GEMM
+        constexpr index_t GemmK = K / GemmKPACK;
+
 
         // weight tensor
         constexpr auto wei_g_k_ydot_ytilda_xdot_xtilda_c_global_desc = transform_tensor_descriptor(
@@ -215,6 +231,44 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
             make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}, Sequence<3>{}, Sequence<4>{}),
             make_tuple(
                 Sequence<0>{}, Sequence<1>{}, Sequence<2,3>{}, Sequence<4, 5>{},Sequence<6>{}));
+
+
+//kevin start
+            constexpr auto wei_g_k_ydotslice_xdotslice_c_global_desc = transform_tensor_descriptor(
+            wei_g_k_ydot_ytilda_xdot_xtilda_c_global_desc,
+            make_tuple(
+		    PassThrough<G>{},
+                PassThrough<K>{},
+                Slice<Sequence<YDot, XDot>, Sequence<0, 0>, Sequence<YDotSlice, XDotSlice>>{},
+                Freeze<Sequence<YTilda, XTilda>, Sequence<iYTilda, iXTilda>>{},
+                PassThrough<C>{}),
+            make_tuple(Sequence<0>{},Sequence<1>{}, Sequence<2, 4>{}, Sequence<3, 5>{}, Sequence<6>{}),
+            make_tuple(Sequence<0>{},Sequence<1>{}, Sequence<2, 3>{}, Sequence<>{}, Sequence<4>{}));
+
+        constexpr auto wei_g_gemmk0_gemmk1_gemmk2_gemmm_global_desc =
+            reorder_tensor_descriptor_given_lower2upper(wei_g_k_ydotslice_xdotslice_c_global_desc,
+                                                        Sequence<0,3, 1, 2, 4>{});
+
+
+	constexpr auto wei_gemmg_gemmk0_gemmk1_gemmk_gemmkpack_gemmm_global_desc=
+		transform_tensor_descriptor(wei_g_gemmk0_gemmk1_gemmk2_gemmm_global_desc,
+				make_tuple
+				(
+				 PassThrough<G>{},
+				 PassThrough<YDotSlice>{},
+				 PassThrough<XDotSlice>{},
+				 UnMerge<Sequence<GemmK, GemmKPACK>>{},
+				 PassThrough<C>{}
+				 ),
+				            make_tuple(Sequence<0>{},Sequence<1>{}, Sequence<2>{}, Sequence<3>{}, Sequence<4>{}),
+            make_tuple(Sequence<0>{},Sequence<1>{}, Sequence<2>{}, Sequence<3,4>{}, Sequence<5>{}));
+
+
+        constexpr auto wei_gemmg_gemmk0_gemmk1_gemmk_gemmm_gemmkpack_global_desc =
+            reorder_tensor_descriptor_given_lower2upper(wei_gemmg_gemmk0_gemmk1_gemmk_gemmkpack_gemmm_global_desc,
+                                                        Sequence<0,1, 2, 3, 5,4>{});
+//kevin end
+
 
 #if !CK_EXPERIMENTAL_IMPLICIT_GEMM_BACKWARD_DATA_V4R1_OUTPUT_SKIP_OUT_OF_BOUND_CHECK
         constexpr bool out_skip_out_of_bound_check = false;
@@ -243,17 +297,21 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
             make_tuple(
                 Sequence<0>{}, Sequence<1>{}, Sequence<2,3>{}, Sequence<4, 5>{}, Sequence<6>{}));
 
-        constexpr auto out_g_n_ydot_htildaslice_xdot_wtildaslice_k_global_desc =
+        constexpr auto out_g_n_ydotslice_htildaslice_xdotslice_wtildaslice_k_global_desc =
             transform_tensor_descriptor(out_g_n_ydot_htilda_xdot_wtilda_k_global_desc,
                                         make_tuple(PassThrough<G>{},
                                                    PassThrough<N>{},
+						   Slice<Sequence<YDot, XDot>, Sequence<0, 0>, Sequence<YDotSlice, XDotSlice>>{},
                                                    //PassThrough<K>{},
-                                                   PassThrough<YTilda>{},
-                                                   PassThrough<XTilda>{},
+                                                   //PassThrough<YTilda>{},
+                                                   //PassThrough<XTilda>{},
                                                    Slice<Sequence<HTilda, WTilda>,
                                                          Sequence<iHTildaLeft, iWTildaLeft>,
                                                          Sequence<iHTildaRight, iWTildaRight>>{},
 					           PassThrough<K>{}),
+					           make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2, 4>{}, Sequence<3, 5>{}, Sequence<6>{}),
+                                                   make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2, 4>{}, Sequence<3, 5>{}, Sequence<6>{}));
+	/*
                                         make_tuple(Sequence<0>{},
                                                    Sequence<1>{},
                                                    Sequence<2>{},
@@ -266,6 +324,43 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
                                                    Sequence<4>{},
                                                    Sequence<3,5>{},
                                                    Sequence<6>{}));
+*/
+
+
+
+
+
+        constexpr auto out_g_gemmk0_gemmk1_gemmk_gemmn_global_desc = transform_tensor_descriptor(
+            out_g_n_ydotslice_htildaslice_xdotslice_wtildaslice_k_global_desc,
+            make_tuple(PassThrough<G>{},
+		       PassThrough<YDotSlice>{},
+                       PassThrough<XDotSlice>{},
+                       PassThrough<K>{},
+                       Merge<Sequence<N, HTildaSlice, WTildaSlice>>{}),
+            make_tuple(Sequence<0>{}, Sequence<2>{}, Sequence<4>{}, Sequence<6>{}, Sequence<1, 3, 5>{}),
+            make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}, Sequence<3>{}, Sequence<4>{}));
+
+
+        constexpr auto out_g_gemmk0_gemmk1_gemmk2_gemmkpack_gemmn_global_desc=
+                transform_tensor_descriptor(out_g_gemmk0_gemmk1_gemmk_gemmn_global_desc,
+                                make_tuple
+                                (
+                                 PassThrough<G>{},
+                                 PassThrough<YDotSlice>{},
+                                 PassThrough<XDotSlice>{},
+				 UnMerge<Sequence<GemmK, GemmKPACK>>{},
+				 PassThrough<GemmN>{}
+                                 //UnMerge<Sequence<GemmK, GemmKPACK>>{},
+                                 
+                                 ),
+                                 make_tuple(Sequence<0>{},Sequence<1>{}, Sequence<2>{}, Sequence<3>{}, Sequence<4>{}),
+                                 make_tuple(Sequence<0>{},Sequence<1>{}, Sequence<2>{}, Sequence<3,4>{}, Sequence<5>{}));
+
+        constexpr auto out_gemmg_gemmk0_gemmk1_gemmk_gemmn_gemmkpack_global_desc =
+            reorder_tensor_descriptor_given_lower2upper(out_g_gemmk0_gemmk1_gemmk2_gemmkpack_gemmn_global_desc,
+                                                        Sequence<0,1, 2, 3, 5,4>{});
+
+
 
 #if !CK_EXPERIMENTAL_IMPLICIT_GEMM_BACKWARD_DATA_V4R1_INPUT_SKIP_OUT_OF_BOUND_CHECK
         constexpr bool in_skip_out_of_bound_check = false;
@@ -338,18 +433,8 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
                                                    Sequence<3,5>{},
                                                    Sequence<6>{}));
 
-        // GEMM
-        constexpr index_t YDotSlice = (iYTilda + 1) * YDot <= Y ? YDot : Y % YDot;
-        constexpr index_t XDotSlice = (iXTilda + 1) * XDot <= X ? XDot : X % XDot;
-
-        // GemmM and GemmN
-        constexpr index_t GemmM = C;
-        constexpr index_t GemmN = N * HTildaSlice * WTildaSlice;
-
-        // GemmK is different for each GEMM
-        constexpr index_t GemmK = K * YDotSlice * XDotSlice / GemmKPACK;
-
-        // A matrix
+               // A matrix
+	/*
         constexpr auto wei_g_k_ydotslice_ytidaslice_xdotslice_xtildaslice_c_global_desc =
             transform_tensor_descriptor(
                 wei_g_k_ydot_ytilda_xdot_xtilda_c_global_desc,
@@ -383,21 +468,23 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
             make_tuple(Sequence<0>{}, Sequence<2, 4,1>{}, Sequence<6, 3, 5>{}),
             make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}));
 
-        constexpr auto wei_gemmg_gemmk_gemmkpack_gemmm_global_desc = transform_tensor_descriptor(
+        constexpr auto wei_gemmg_gemmk0_gemmk1_gemmk_gemmkpack_gemmm_global_desc = transform_tensor_descriptor(
             wei_gemmg_gemmk_gemmm_global_desc,
-            make_tuple(
-                PassThrough<G>{}, UnMerge<Sequence<GemmK, GemmKPACK>>{}, PassThrough<GemmM>{}),
+            make_tuple(//you need to recover it after test
+                PassThrough<G>{}, UnMerge<Sequence<1,1,GemmK, GemmKPACK>>{}, PassThrough<GemmM>{}),
             make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}),
-            make_tuple(Sequence<0>{}, Sequence<1, 2>{}, Sequence<3>{}));
+            make_tuple(Sequence<0>{}, Sequence<1, 2,3,4>{}, Sequence<5>{}));
 
-        constexpr auto wei_gemmg_gemmk_gemmm_gemmkpack_global_desc = transform_tensor_descriptor(
-            wei_gemmg_gemmk_gemmkpack_gemmm_global_desc,
+        constexpr auto wei_gemmg_gemmk0_gemmk1_gemmk_gemmm_gemmkpack_global_desc = transform_tensor_descriptor(
+            wei_gemmg_gemmk0_gemmk1_gemmk_gemmkpack_gemmm_global_desc,
             make_tuple(PassThrough<G>{},
+		       PassThrough<K0>{},
+		       PassThrough<K1>{},
                        PassThrough<GemmK>{},
                        PassThrough<GemmM>{},
                        PassThrough<GemmKPACK>{}),
-            make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<3>{}, Sequence<2>{}),
-            make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}, Sequence<3>{}));
+            make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{},Sequence<3>{}, Sequence<5>{}, Sequence<4>{}),
+            make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{},Sequence<3>{}, Sequence<4>{}, Sequence<5>{}));
 
         // B matrix
         constexpr auto out_g_n_ydotslice_htildaslice_xdotslice_wtildaslice_k_global_desc =
@@ -432,22 +519,26 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
             make_tuple(Sequence<0>{}, Sequence<2, 4, 6>{}, Sequence<1, 3, 5>{}),
             make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}));
 
-        constexpr auto out_gemmg_gemmk_gemmkpack_gemmn_global_desc = transform_tensor_descriptor(
+        constexpr auto out_gemmg_gemmk0_gemmk1_gemmk_gemmkpack_gemmn_global_desc = transform_tensor_descriptor(
             out_gemmg_gemmk_gemmn_global_desc,
             make_tuple(
-                PassThrough<G>{}, UnMerge<Sequence<GemmK, GemmKPACK>>{}, PassThrough<GemmN>{}),
+                PassThrough<G>{}, UnMerge<Sequence<1,1,GemmK, GemmKPACK>>{}, PassThrough<GemmN>{}),
             make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}),
-            make_tuple(Sequence<0>{}, Sequence<1, 2>{}, Sequence<3>{}));
+            make_tuple(Sequence<0>{}, Sequence<1, 2,3,4>{}, Sequence<5>{}));
 
-        constexpr auto out_gemmg_gemmk_gemmn_gemmkpack_global_desc = transform_tensor_descriptor(
-            out_gemmg_gemmk_gemmkpack_gemmn_global_desc,
+
+
+        constexpr auto out_gemmg_gemmk0_gemmk1_gemmk_gemmn_gemmkpack_global_desc = transform_tensor_descriptor(
+            out_gemmg_gemmk0_gemmk1_gemmk_gemmkpack_gemmn_global_desc,
             make_tuple(PassThrough<G>{},
+		       PassThrough<K0>{},
+		       PassThrough<K1>{},
                        PassThrough<GemmK>{},
                        PassThrough<GemmN>{},
                        PassThrough<GemmKPACK>{}),
-            make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<3>{}, Sequence<2>{}),
-            make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}, Sequence<3>{}));
-
+            make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{},Sequence<3>{}, Sequence<5>{}, Sequence<4>{}),
+            make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{},Sequence<3>{}, Sequence<4>{}, Sequence<5>{}));
+*/
         // C matrix
         constexpr auto in_g_n_ytildaslice_htildaslice_xtildaslice_wtildaslice_c_global_desc =
             transform_tensor_descriptor(in_g_n_ytilda_htildaslice_xtilda_wtildaslice_c_global_desc,
@@ -522,34 +613,35 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
         gridwise_gemm.Run(p_wei_global, p_out_global, p_in_global);
 */
 
-        constexpr auto gridwise_gemm = GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v3<
+        constexpr auto gridwise_gemm = GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v4<
             GridSize,
             BlockSize,
             Float,
             AccFloat,
             Float,
-            decltype(wei_gemmg_gemmk_gemmm_gemmkpack_global_desc),
-            decltype(out_gemmg_gemmk_gemmn_gemmkpack_global_desc),
+	    //decltype(wei_gemmk0_gemmk1_gemmk2_gemmm_global_desci),
+            decltype(wei_gemmg_gemmk0_gemmk1_gemmk_gemmm_gemmkpack_global_desc),
+            decltype(out_gemmg_gemmk0_gemmk1_gemmk_gemmn_gemmkpack_global_desc),
             decltype(in_gemmg_gemmm_gemmn_global_desc),
             GemmMPerBlock,
             GemmNPerBlock,
             GemmKPerBlock,
             GemmMPerWave,
             GemmNPerWave,
-            GemmABlockCopyThreadSliceLengths_GemmG_GemmK_GemmM_GemmKPACK,
-            GemmABlockCopyThreadClusterLengths_GemmG_GemmK_GemmM_GemmKPACK,
-            Sequence<0, 1, 2, 3>,
-            Sequence<0, 1, 2, 3>,
-            Sequence<0, 1, 2, 3>,
-            2, // src vector read dimension of A matrix is GemmKPack
+            GemmABlockCopyThreadSliceLengths_GemmG_GemmK0_GemmK1_GemmK_GemmM_GemmKPACK,
+            GemmABlockCopyThreadClusterLengths_GemmG_GemmK0_GemmK1_GemmK_GemmM_GemmKPACK,
+            Sequence<0, 1, 2, 3,4,5>,
+            Sequence<0, 1, 2, 3,4,5>,
+            Sequence<0, 1, 2, 3,4,5>,
+            4, // src vector read dimension of A matrix is M
             GemmABlockCopySrcDataPerRead_GemmM,
             GemmABlockCopyDstDataPerWrite_GemmKPACK,
-            GemmBBlockCopyThreadSliceLengths_GemmG_GemmK_GemmN_GemmKPACK,
-            GemmBBlockCopyThreadClusterLengths_GemmG_GemmK_GemmN_GemmKPACK,
-            Sequence<0, 2, 1, 3>,
-            Sequence<0, 2, 1, 3>,
-            Sequence<0, 2, 1, 3>,
-            3, // Src vetor read diemsnion of B matrix is GemmN
+            GemmBBlockCopyThreadSliceLengths_GemmG_GemmK0_GemmK1_GemmK_GemmN_GemmKPACK,
+            GemmBBlockCopyThreadClusterLengths_GemmG_GemmK0_GemmK1_GemmK_GemmN_GemmKPACK,
+            Sequence<0, 1,2,4, 3, 5>,
+            Sequence<0, 1,2,4, 3, 5>,
+            Sequence<0, 1,2,4, 3, 5>,
+            5, // Src vetor read diemsnion of B matrix is kpack
             GemmBBlockCopySrcDataPerRead_GemmKPACK,
             GemmBBlockCopyDstDataPerWrite_GemmKPACK,
             InMemoryDataOperation::Set,
