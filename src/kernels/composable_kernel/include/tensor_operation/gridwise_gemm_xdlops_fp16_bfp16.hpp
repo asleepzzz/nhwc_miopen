@@ -1621,9 +1621,9 @@ for(index_t k0 = 0; k0 < K0; ++k0)
                                                       decltype(c_g_m0_m1_m2_n_global_desc),
                                                       CThreadCopySliceLengths,
                                                       arithmetic_sequence_gen<0, 5, 1>::type,
-                                                      3,
-                                                      math::gcd(M2,8),
-                                                      math::gcd(M2,8),
+                                                      4,
+                                                      1,//math::gcd(M2,8),
+                                                      1,//math::gcd(M2,8),
                                                       AddressSpace::Vgpr,
                                                       AddressSpace::Global,
                                                       CGlobalMemoryOp>(

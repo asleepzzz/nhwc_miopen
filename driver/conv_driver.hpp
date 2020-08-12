@@ -3045,8 +3045,8 @@ int ConvDriver<Tgpu, Tref>::VerifyBackward()
 		din_host2.data[nhwc_index]=din_host.data[i];
 	}	
         auto error_data = is_bwd_run_failed ? std::numeric_limits<double>::max()
-                                            //: miopen::rms_range(din_host.data, din);
-					    : miopen::rms_range(din_host2.data, din);
+                                            : miopen::rms_range(din_host.data, din);
+					    //: miopen::rms_range(din_host2.data, din);
 
         auto tolerance = GetDefaultTolerance();
         // iGemm's deviation is higher than other algorithms.
